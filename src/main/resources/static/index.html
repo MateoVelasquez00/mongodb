@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Inventario | MongoDB + Spring Boot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+    <!-- Barra Superior -->
+    <nav class="bg-slate-900 text-white shadow-md">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-emerald-500/20 border border-emerald-500/40 p-2 rounded-lg text-emerald-400">
+                    <i class="fa-solid fa-leaf text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg tracking-tight">Inventario MongoDB</h1>
+                    <p class="text-xs text-slate-400">Spring Boot REST API • Colección <code class="text-emerald-400">productos</code></p>
+                </div>
+            </div>
+            <button id="btnNuevoProducto" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition shadow-sm">
+                <i class="fa-solid fa-plus"></i> Nuevo Producto
+            </button>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-8">
+        <!-- Tarjetas de Resumen -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Productos</p>
+                    <p id="statTotal" class="text-2xl font-bold text-slate-800 mt-1">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <i class="fa-solid fa-boxes-stacked text-lg"></i>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Activos</p>
+                    <p id="statActivos" class="text-2xl font-bold text-emerald-600 mt-1">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <i class="fa-solid fa-circle-check text-lg"></i>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Unidades en Stock</p>
+                    <p id="statStock" class="text-2xl font-bold text-indigo-600 mt-1">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <i class="fa-solid fa-layer-group text-lg"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de Búsqueda y Filtros -->
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex flex-col sm:flex-row gap-3 justify-between items-center">
+            <div class="relative w-full sm:w-96">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                <input type="text" id="inputBuscar" placeholder="Buscar producto por nombre o ID..."
+                    class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
+            </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <select id="filtroEstado" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="todos">Todos los estados</option>
+                    <option value="true">Solo Activos</option>
+                    <option value="false">Solo Inactivos</option>
+                </select>
+                <button id="btnRecargar" title="Recargar lista" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-sm transition">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabla de Productos -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                            <th class="py-3.5 px-5">ID Documento</th>
+                            <th class="py-3.5 px-5">Nombre</th>
+                            <th class="py-3.5 px-5">Categoría ID</th>
+                            <th class="py-3.5 px-5 text-center">Stock</th>
+                            <th class="py-3.5 px-5 text-center">Estado</th>
+                            <th class="py-3.5 px-5 text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaProductos" class="divide-y divide-slate-100 text-sm">
+                        <tr>
+                            <td colspan="6" class="py-10 text-center text-slate-400">
+                                <i class="fa-solid fa-spinner fa-spin mr-2"></i> Cargando inventario...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Crear / Editar -->
+    <div id="modalProducto" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                <h2 id="modalTitulo" class="font-bold text-slate-800">Nuevo Producto</h2>
+                <button type="button" id="btnCerrarModalX" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="formProducto" class="p-6 space-y-4">
+                <input type="hidden" id="prodId">
+                
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Nombre del Producto *</label>
+                    <input type="text" id="prodNombre" required placeholder="Ej. Teclado Mecánico RGB"
+                        class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Stock *</label>
+                        <input type="number" id="prodStock" required min="0" value="0"
+                            class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Categoría ID *</label>
+                        <input type="text" id="prodCategoria" required placeholder="Ej. CAT-01"
+                            class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-2">
+                    <span class="text-sm font-medium text-slate-700">Estado inicial del producto</span>
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="prodEstado" checked class="sr-only peer">
+                        <div class="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        <span id="labelEstadoModal" class="ms-2 text-xs font-semibold text-emerald-600">Activo</span>
+                    </label>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex justify-end gap-2">
+                    <button type="button" id="btnCancelarModal" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-sm transition">
+                        Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notificación -->
+    <div id="toast" class="fixed bottom-5 right-5 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg text-sm flex items-center gap-2.5 z-50">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMsg">Operación exitosa</span>
+    </div>
+
+    <!-- Archivo JavaScript externo -->
+    <script src="/js/app.js"></script>
+</body>
+</html>
